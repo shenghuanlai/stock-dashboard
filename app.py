@@ -9,9 +9,9 @@ import os
 # =========================
 # 網頁基本設定
 # =========================
-st.set_page_config(page_title="股票加碼策略儀表板", layout="wide")
+st.set_page_config(page_title="股票加碼計畫", layout="wide")
 
-st.title("📈 股票加碼策略儀表板")
+st.title("📈 股票加碼計畫 (By M.L.)")
 st.write("自動判斷 0050、00662 的加碼條件，並根據本月投入狀況與年底完成目標，給出下一步建議。")
 
 
@@ -271,10 +271,6 @@ if st.sidebar.button("儲存本次輸入紀錄"):
 
     st.sidebar.success("已儲存本次輸入紀錄")
 
-chart_type = st.sidebar.radio(
-    "圖表類型",
-    ["K 線圖", "折線圖"]
-)
 
 st.sidebar.write("---")
 st.sidebar.write("說明：")
@@ -596,26 +592,16 @@ for symbol, info in strategy.items():
 
         fig = go.Figure()
 
-        if chart_type == "K 線圖":
-            fig.add_trace(
-                go.Candlestick(
-                    x=data["Date"],
-                    open=data["Open"],
-                    high=data["High"],
-                    low=data["Low"],
-                    close=data["Close"],
-                    name="K 線"
-                )
+        fig.add_trace(
+            go.Candlestick(
+                x=data["Date"],
+                open=data["Open"],
+                high=data["High"],
+                low=data["Low"],
+                close=data["Close"],
+                name="K 線"
             )
-        else:
-            fig.add_trace(
-                go.Scatter(
-                    x=data["Date"],
-                    y=data["Close"],
-                    mode="lines",
-                    name="收盤價"
-                )
-            )
+        )
 
         fig.add_trace(
             go.Scatter(
@@ -636,15 +622,22 @@ for symbol, info in strategy.items():
         )
 
         fig.update_layout(
-            title=f"{symbol} 股價走勢",
+            title=f"{symbol} 近一年 K 線圖",
             xaxis_title="日期",
             yaxis_title="價格",
-            height=500,
-            xaxis_rangeslider_visible=False
+            height=400,
+            xaxis_rangeslider_visible=False,
+            dragmode=False
         )
 
-        st.plotly_chart(fig, width="stretch")
-
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={
+                "displayModeBar": False,
+                "scrollZoom": False
+            }
+        )
 
         st.write("---")
 

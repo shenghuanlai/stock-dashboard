@@ -122,20 +122,42 @@ def delete_investment_record(index_to_delete):
 # =========================
 # 股票資料下載
 # =========================
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_stock_data(symbol, start, end):
+    """
+    下載股票資料。
+    加上資料清理，避免 yfinance 回傳 NaN 導致畫面顯示 nan。
+    """
+
     data = yf.download(
         symbol,
-        start=start,
-        end=end,
+        period="1y",
         progress=False,
         auto_adjust=False
     )
 
+    # 如果抓不到資料，直接回傳空資料表
+    if data.empty:
+        return pd.DataFrame()
+
+    # 如果 yfinance 回傳多層欄位，轉成一般欄位
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
     data = data.reset_index()
+
+    # 把重要欄位轉成數字
+    for col in ["Open", "High", "Low", "Close", "Volume"]:
+        if col in data.columns:
+            data[col] = pd.to_numeric(data[col], errors="coerce")
+
+    # 刪除 Close 是空值的資料
+    data = data.dropna(subset=["Close"])
+
+    # 再次確認資料是否為空
+    if data.empty:
+        return pd.DataFrame()
+
     return data
 
 
@@ -325,8 +347,8 @@ for symbol, info in strategy.items():
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA20"] = data["Close"].rolling(window=20).mean()
 
-        latest_close = float(data["Close"].iloc[-1])
-        period_high = float(data["High"].max())
+        latest_close = float(data["Close"].dropna().iloc[-1])
+        period_high = float(data["High"].dropna().max())
 
         drawdown_pct = (latest_close - period_high) / period_high * 100
 
@@ -432,8 +454,8 @@ for symbol, info in strategy.items():
         data["MA5"] = data["Close"].rolling(window=5).mean()
         data["MA20"] = data["Close"].rolling(window=20).mean()
 
-        latest_close = float(data["Close"].iloc[-1])
-        period_high = float(data["High"].max())
+        latest_close = float(data["Close"].dropna().iloc[-1])
+        period_high = float(data["High"].dropna().max())
         drawdown_pct = (latest_close - period_high) / period_high * 100
 
         triggered_rule = get_triggered_rule(drawdown_pct, info["dip_rules"])
@@ -628,7 +650,7 @@ for symbol, info in strategy.items():
 
     except Exception as e:
         st.error(f"{symbol} 發生錯誤：{e}")
-        
+
 
 # =========================
 # 歷史輸入紀錄

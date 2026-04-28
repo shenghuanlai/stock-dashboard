@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from datetime import date, datetime, timedelta
 import math
 import os
+import gspread
+from google.oauth2.service_account import Credentials
 
 # =========================
 # 網頁基本設定
@@ -44,19 +46,36 @@ strategy = {
 }
 
 # =========================
-# 操作紀錄功能
+# Google Sheets 紀錄功能
 # =========================
-LOG_FILE = "investment_log.csv"
+
+def get_google_sheet():
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    credentials = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=scopes
+    )
+
+    client = gspread.authorize(credentials)
+
+    sheet_name = st.secrets["google_sheet"]["sheet_name"]
+    worksheet_name = st.secrets["google_sheet"]["worksheet_name"]
+
+    spreadsheet = client.open(sheet_name)
+    worksheet = spreadsheet.worksheet(worksheet_name)
+
+    return worksheet
 
 
 def load_investment_log():
-    """
-    讀取歷史輸入紀錄。
-    如果還沒有紀錄檔，就建立一個空的表格。
-    """
-    if os.path.exists(LOG_FILE):
-        return pd.read_csv(LOG_FILE)
-    else:
+    worksheet = get_google_sheet()
+    records = worksheet.get_all_records()
+
+    if len(records) == 0:
         return pd.DataFrame(
             columns=[
                 "時間",
@@ -68,12 +87,7 @@ def load_investment_log():
             ]
         )
 
-
-def save_investment_log(df):
-    """
-    儲存歷史輸入紀錄到 CSV 檔案。
-    """
-    df.to_csv(LOG_FILE, index=False, encoding="utf-8-sig")
+    return pd.DataFrame(records)
 
 
 def add_investment_record(
@@ -83,37 +97,30 @@ def add_investment_record(
     monthly_00662,
     note
 ):
-    """
-    新增一筆輸入紀錄。
-    """
-    log_df = load_investment_log()
+    worksheet = get_google_sheet()
 
-    new_record = {
-        "時間": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "0050已購入總金額": purchased_0050,
-        "00662已購入總金額": purchased_00662,
-        "0050本月已投入金額": monthly_0050,
-        "00662本月已投入金額": monthly_00662,
-        "備註": note
-    }
+    new_row = [
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        purchased_0050,
+        purchased_00662,
+        monthly_0050,
+        monthly_00662,
+        note
+    ]
 
-    log_df = pd.concat(
-        [log_df, pd.DataFrame([new_record])],
-        ignore_index=True
-    )
-
-    save_investment_log(log_df)
+    worksheet.append_row(new_row)
 
 
 def delete_investment_record(index_to_delete):
-    """
-    刪除指定的一筆紀錄。
-    """
-    log_df = load_investment_log()
+    worksheet = get_google_sheet()
 
-    if 0 <= index_to_delete < len(log_df):
-        log_df = log_df.drop(index=index_to_delete).reset_index(drop=True)
-        save_investment_log(log_df)
+    # Google Sheet 第 1 列是標題，所以資料從第 2 列開始
+    sheet_row_number = index_to_delete + 2
+
+    all_values = worksheet.get_all_values()
+
+    if sheet_row_number <= len(all_values):
+        worksheet.delete_rows(sheet_row_number)
         return True
 
     return False

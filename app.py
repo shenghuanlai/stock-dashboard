@@ -51,8 +51,7 @@ strategy = {
 
 def get_google_sheet():
     scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
+        "https://www.googleapis.com/auth/spreadsheets"
     ]
 
     credentials = Credentials.from_service_account_info(
@@ -62,10 +61,10 @@ def get_google_sheet():
 
     client = gspread.authorize(credentials)
 
-    sheet_name = st.secrets["google_sheet"]["sheet_name"]
+    spreadsheet_id = st.secrets["google_sheet"]["spreadsheet_id"]
     worksheet_name = st.secrets["google_sheet"]["worksheet_name"]
 
-    spreadsheet = client.open(sheet_name)
+    spreadsheet = client.open_by_key(spreadsheet_id)
     worksheet = spreadsheet.worksheet(worksheet_name)
 
     return worksheet

@@ -11,10 +11,346 @@ from google.oauth2.service_account import Credentials
 # =========================
 # 網頁基本設定
 # =========================
-st.set_page_config(page_title="股票加碼計畫", layout="wide")
+st.set_page_config(
+    page_title="股票加碼計畫",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
 
-st.title("📈 股票加碼計畫 (By M.L.)")
-st.write("自動判斷 0050、00662 的加碼條件，並根據本月投入狀況與年底完成目標，給出下一步建議。")
+# =========================
+# CSS：黑底 iOS Health 風格
+# =========================
+st.markdown(
+    """
+<style>
+.stApp {
+    background: #000000;
+    color: #F5F5F7;
+}
+
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+.block-container {
+    max-width: 760px;
+    padding-top: 1.5rem;
+    padding-bottom: 4rem;
+}
+
+.top-title {
+    font-size: 2.3rem;
+    font-weight: 900;
+    color: #F5F5F7;
+    margin-bottom: 0.2rem;
+}
+
+.top-subtitle {
+    font-size: 0.95rem;
+    color: #8E8E93;
+    margin-bottom: 1.4rem;
+}
+
+.section-title {
+    font-size: 1.55rem;
+    font-weight: 850;
+    color: #F5F5F7;
+    margin-top: 1.4rem;
+    margin-bottom: 0.8rem;
+}
+
+.summary-card {
+    background: #1C1C1E;
+    border-radius: 24px;
+    padding: 18px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.mini-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.mini-item {
+    background: #2C2C2E;
+    border-radius: 18px;
+    padding: 14px;
+}
+
+.mini-label {
+    font-size: 0.88rem;
+    margin-bottom: 0.35rem;
+    font-weight: 800;
+}
+
+.label-blue { color: #0A84FF; }
+.label-green { color: #30D158; }
+.label-orange { color: #FF9F0A; }
+.label-pink { color: #FF2D55; }
+
+.mini-value {
+    color: #F5F5F7;
+    font-size: 1.75rem;
+    font-weight: 900;
+    line-height: 1.2;
+}
+
+.card {
+    background: #1C1C1E;
+    border-radius: 24px;
+    padding: 18px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+.card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.card-title {
+    font-size: 1.15rem;
+    font-weight: 850;
+    color: #F5F5F7;
+}
+
+.card-time {
+    font-size: 0.9rem;
+    color: #8E8E93;
+}
+
+.badge-blue {
+    color: #0A84FF;
+    font-weight: 850;
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.big-value {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #F5F5F7;
+    line-height: 1.15;
+}
+
+.subtext {
+    font-size: 0.95rem;
+    color: #8E8E93;
+    margin-top: 4px;
+}
+
+.two-col {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 11px;
+    margin-top: 14px;
+}
+
+.metric-box {
+    background: #2C2C2E;
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.metric-label {
+    font-size: 0.82rem;
+    color: #8E8E93;
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-size: 1.35rem;
+    font-weight: 850;
+    color: #F5F5F7;
+}
+
+.status-box {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 16px;
+    font-size: 0.95rem;
+    font-weight: 650;
+}
+
+.status-good {
+    background: rgba(48, 209, 88, 0.12);
+    color: #30D158;
+    border: 1px solid rgba(48, 209, 88, 0.18);
+}
+
+.stock-hero-card {
+    background: #1C1C1E;
+    border-radius: 26px;
+    padding: 22px;
+    margin-bottom: 22px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.stock-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.stock-name {
+    font-size: 1.55rem;
+    font-weight: 900;
+    color: #F5F5F7;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 850;
+}
+
+.pill-good {
+    background: rgba(48, 209, 88, 0.14);
+    color: #30D158;
+}
+
+.pill-warn {
+    background: rgba(255, 159, 10, 0.14);
+    color: #FF9F0A;
+}
+
+.pill-danger {
+    background: rgba(255, 69, 58, 0.14);
+    color: #FF453A;
+}
+
+.hero-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.hero-main {
+    background: #2C2C2E;
+    border-radius: 20px;
+    padding: 18px;
+}
+
+.hero-label {
+    color: #8E8E93;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+}
+
+.hero-price {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #F5F5F7;
+    line-height: 1;
+}
+
+.hero-change {
+    font-size: 1.25rem;
+    font-weight: 850;
+    margin-top: 10px;
+}
+
+.price-up {
+    color: #FF453A;
+}
+
+.price-down {
+    color: #30D158;
+}
+
+.price-flat {
+    color: #8E8E93;
+}
+
+.hero-suggestion {
+    background: rgba(10, 132, 255, 0.14);
+    border: 1px solid rgba(10, 132, 255, 0.25);
+    border-radius: 20px;
+    padding: 18px;
+}
+
+.suggestion-value {
+    font-size: 2.15rem;
+    font-weight: 900;
+    color: #0A84FF;
+    line-height: 1.1;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.info-tile {
+    background: #2C2C2E;
+    border-radius: 16px;
+    padding: 12px;
+}
+
+.info-label {
+    color: #8E8E93;
+    font-size: 0.8rem;
+    margin-bottom: 5px;
+}
+
+.info-value {
+    color: #F5F5F7;
+    font-size: 1.25rem;
+    font-weight: 850;
+}
+
+@media (max-width: 640px) {
+    .top-title {
+        font-size: 1.9rem;
+    }
+
+    .section-title {
+        font-size: 1.35rem;
+    }
+
+    .mini-grid,
+    .two-col,
+    .hero-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .mini-value {
+        font-size: 1.55rem;
+    }
+
+    .hero-price {
+        font-size: 2.4rem;
+    }
+
+    .stock-name {
+        font-size: 1.3rem;
+    }
+}
+</style>
+""",
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
+    <div class="top-title">📈 股票加碼計畫</div>
+    <div class="top-subtitle">0050・00662 投資進度儀表板｜自動判斷本月建議操作</div>
+    """,
+    unsafe_allow_html=True
+)
 
 
 # =========================
@@ -247,74 +583,64 @@ def round_up_to_thousand(amount):
 
 
 # =========================
-# 側邊欄輸入
+# 主畫面輸入區
 # =========================
-st.sidebar.header("資金設定")
+with st.expander("輸入 / 更新投入金額", expanded=True):
 
-st.sidebar.write("總計畫資金：105 萬")
-st.sidebar.write("0050：40 萬")
-st.sidebar.write("00662：65 萬")
+    st.markdown("### 資金設定")
 
-purchased_0050 = st.sidebar.number_input(
-    "0050 已購入總金額",
-    min_value=0,
-    max_value=400000,
-    value=0,
-    step=10000
-)
-
-purchased_00662 = st.sidebar.number_input(
-    "00662 已購入總金額",
-    min_value=0,
-    max_value=650000,
-    value=0,
-    step=10000
-)
-
-st.sidebar.write("---")
-st.sidebar.subheader("本月投入狀態")
-
-monthly_0050 = st.sidebar.number_input(
-    "0050 本月已投入金額",
-    min_value=0,
-    max_value=400000,
-    value=0,
-    step=10000
-)
-
-monthly_00662 = st.sidebar.number_input(
-    "00662 本月已投入金額",
-    min_value=0,
-    max_value=650000,
-    value=0,
-    step=10000
-)
-
-st.sidebar.write("---")
-st.sidebar.subheader("紀錄本次輸入")
-
-record_note = st.sidebar.text_input(
-    "備註",
-    value="",
-    placeholder="例如：5月定期定額、修正金額、下跌加碼"
-)
-
-if st.sidebar.button("儲存本次輸入紀錄"):
-    add_investment_record(
-        purchased_0050,
-        purchased_00662,
-        monthly_0050,
-        monthly_00662,
-        record_note
+    purchased_0050 = st.number_input(
+        "0050 已購入總金額",
+        min_value=0,
+        max_value=400000,
+        value=0,
+        step=10000
     )
 
-    st.sidebar.success("已儲存本次輸入紀錄")
+    purchased_00662 = st.number_input(
+        "00662 已購入總金額",
+        min_value=0,
+        max_value=650000,
+        value=0,
+        step=10000
+    )
 
+    st.markdown("### 本月投入狀態")
 
-st.sidebar.write("---")
-st.sidebar.write("說明：")
-st.sidebar.write("已購入總金額：代表這檔今年計畫中，你目前總共已經買多少。")
-st.sidebar.write("本月已投入金額：用來判斷這個月是否已經完成定期投入。")
+    monthly_0050 = st.number_input(
+        "0050 本月已投入金額",
+        min_value=0,
+        max_value=400000,
+        value=0,
+        step=10000
+    )
+
+    monthly_00662 = st.number_input(
+        "00662 本月已投入金額",
+        min_value=0,
+        max_value=650000,
+        value=0,
+        step=10000
+    )
+
+    st.markdown("### 紀錄本次輸入")
+
+    record_note = st.text_input(
+        "備註",
+        value="",
+        placeholder="例如：5月定期定額、修正金額、下跌加碼"
+    )
+
+    if st.button("儲存本次輸入紀錄"):
+        add_investment_record(
+            purchased_0050,
+            purchased_00662,
+            monthly_0050,
+            monthly_00662,
+            record_note
+        )
+
+        st.success("已儲存本次輸入紀錄")
 
 
 # =========================
@@ -333,24 +659,36 @@ total_budget = 1050000
 total_purchased = purchased_0050 + purchased_00662
 total_remaining = total_budget - total_purchased
 
-st.subheader("資金總覽")
+st.markdown('<div class="section-title">資金總覽</div>', unsafe_allow_html=True)
 
-col_a, col_b, col_c, col_d = st.columns(4)
-
-col_a.metric("總計畫資金", f"{total_budget:,.0f} 元")
-col_b.metric("已購入金額", f"{total_purchased:,.0f} 元")
-col_c.metric("剩餘資金", f"{total_remaining:,.0f} 元")
-col_d.metric("今年剩餘月份", f"{months_left} 個月")
+st.markdown(
+    f"""
+    <div class="summary-card">
+        <div class="mini-grid">
+            <div class="mini-item">
+                <div class="mini-label label-blue">總計畫資金</div>
+                <div class="mini-value">{total_budget:,.0f} 元</div>
+            </div>
+            <div class="mini-item">
+                <div class="mini-label label-green">已購入金額</div>
+                <div class="mini-value">{total_purchased:,.0f} 元</div>
+            </div>
+            <div class="mini-item">
+                <div class="mini-label label-orange">剩餘資金</div>
+                <div class="mini-value">{total_remaining:,.0f} 元</div>
+            </div>
+            <div class="mini-item">
+                <div class="mini-label label-pink">今年剩餘月份</div>
+                <div class="mini-value">{months_left} 個月</div>
+            </div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 st.write("---")
 
-
-# =========================
-# 今日建議總覽
-# =========================
-st.subheader("今日建議操作總覽")
-
-summary_rows = []
 
 
 # =========================
@@ -436,26 +774,10 @@ for symbol, info in strategy.items():
         else:
             action_text = f"建議投入 {total_suggestion:,.0f} 元，以符合年底完成進度"
 
-        summary_rows.append({
-            "標的": f"{symbol} {info['name']}",
-            "目前價格": round(latest_close, 2),
-            "距離高點跌幅": f"{drawdown_pct:.2f}%",
-            "已購入": f"{purchased_amount:,.0f} 元",
-            "剩餘可投入": f"{remaining_budget:,.0f} 元",
-            "本月已投入": f"{monthly_invested:,.0f} 元",
-            "本月建議投入": f"{total_suggestion:,.0f} 元",
-            "約可買股數": f"{estimated_shares:,} 股",
-            "建議操作": action_text
-        })
 
     except Exception as e:
         st.error(f"{symbol} 發生錯誤：{e}")
 
-
-summary_df = pd.DataFrame(summary_rows)
-st.dataframe(summary_df, width="stretch")
-
-st.write("---")
 
 
 # =========================
@@ -524,80 +846,179 @@ for symbol, info in strategy.items():
         estimated_shares = int(total_suggestion // latest_close) if latest_close > 0 else 0
 
         # =========================
-        # 重點數據
+        # 股票主卡片
         # =========================
-        col1, col2, col3, col4 = st.columns(4)
 
-        col1.metric("目前價格", f"{latest_close:.2f}")
-        col2.metric("近一年高點", f"{period_high:.2f}")
-        col3.metric("距離高點跌幅", f"{drawdown_pct:.2f}%")
-        col4.metric("剩餘可投入", f"{remaining_budget:,.0f} 元")
+        # 計算今日漲跌幅
+        if len(data) >= 2:
+            previous_close = float(data["Close"].dropna().iloc[-2])
+            daily_change_pct = (latest_close - previous_close) / previous_close * 100
+        else:
+            daily_change_pct = 0
 
-        col5, col6, col7, col8 = st.columns(4)
+        # 加碼狀態標籤
+        if triggered_rule is not None:
+            pill_text = "已觸發加碼"
+            pill_class = "pill-danger"
+        elif drawdown_pct <= -3:
+            pill_text = "接近觀察區"
+            pill_class = "pill-warn"
+        else:
+            pill_text = "尚未觸發加碼"
+            pill_class = "pill-good"
 
-        col5.metric("基本月投入", f"{basic_monthly_dca:,.0f} 元")
-        col6.metric("年底完成所需月投入", f"{required_monthly_by_year_end:,.0f} 元")
-        col7.metric("本月已投入", f"{monthly_invested:,.0f} 元")
-        col8.metric("本月建議再投入", f"{total_suggestion:,.0f} 元")
+        # 台股習慣：紅色代表漲，綠色代表跌
+        if daily_change_pct > 0:
+            change_class = "price-up"
+            change_text = f"今日上漲 +{daily_change_pct:.2f}%"
+        elif daily_change_pct < 0:
+            change_class = "price-down"
+            change_text = f"今日下跌 {daily_change_pct:.2f}%"
+        else:
+            change_class = "price-flat"
+            change_text = "今日持平 0.00%"
+
+        st.markdown(
+            f"""
+        <div class="stock-hero-card">
+        <div class="stock-header-row">
+        <div class="stock-name">{symbol}｜{info["name"]}</div>
+        <div class="status-pill {pill_class}">{pill_text}</div>
+        </div>
+
+        <div class="hero-grid">
+        <div class="hero-main">
+        <div class="hero-label">目前價格</div>
+        <div class="hero-price">{latest_close:.2f}</div>
+        <div class="hero-change {change_class}">{change_text}</div>
+        </div>
+
+        <div class="hero-suggestion">
+        <div class="hero-label">本月建議投入</div>
+        <div class="suggestion-value">{total_suggestion / 10000:.1f} 萬</div>
+        <div class="subtext">約可買 {estimated_shares:,} 股</div>
+        </div>
+        </div>
+
+        <div class="info-grid">
+        <div class="info-tile">
+        <div class="info-label">近一年高點</div>
+        <div class="info-value">{period_high:.2f}</div>
+        </div>
+
+        <div class="info-tile">
+        <div class="info-label">剩餘可投入</div>
+        <div class="info-value">{remaining_budget / 10000:.1f} 萬</div>
+        </div>
+
+        <div class="info-tile">
+        <div class="info-label">距高點跌幅</div>
+        <div class="info-value">{drawdown_pct:.2f}%</div>
+        </div>
+
+        <div class="info-tile">
+        <div class="info-label">基本月投入</div>
+        <div class="info-value">{basic_monthly_dca / 10000:.1f} 萬</div>
+        </div>
+
+        <div class="info-tile">
+        <div class="info-label">年度所需月投入</div>
+        <div class="info-value">{required_monthly_by_year_end / 10000:.1f} 萬</div>
+        </div>
+
+        <div class="info-tile">
+        <div class="info-label">本月已投入</div>
+        <div class="info-value">{monthly_invested / 10000:.1f} 萬</div>
+        </div>
+        </div>
+        </div>
+        """,
+            unsafe_allow_html=True
+        )
 
         # =========================
         # 今日建議
         # =========================
         st.subheader("今日建議操作")
 
+        suggestion_points = []
+
         if remaining_budget <= 0:
-            st.success("這檔股票已完成今年預計投入金額。")
+            suggestion_points.append("這檔股票已完成今年預計投入金額。")
 
         else:
+            # 第 1 點：整合本月進度、年底完成需求、本次建議投入
             if monthly_invested < basic_monthly_dca:
-                st.warning(
-                    f"本月尚未完成基本定期定額。"
-                    f"基本定期定額還差 {basic_remaining_this_month:,.0f} 元。"
+                monthly_status_text = (
+                    f"本月尚未完成基本定期定額，還差 {basic_remaining_this_month:,.0f} 元"
                 )
             else:
-                st.info("本月基本定期定額已完成。")
+                monthly_status_text = "本月基本定期定額已完成"
 
             if required_monthly_by_year_end > basic_monthly_dca:
-                st.warning(
-                    f"因為你希望年底前完成投入，"
-                    f"目前每月平均需要投入約 {required_monthly_by_year_end:,.0f} 元，"
-                    f"高於原本基本定期定額 {basic_monthly_dca:,.0f} 元。"
+                year_end_text = (
+                    f"為了年底前完成投入，目前每月平均需要投入約 "
+                    f"{required_monthly_by_year_end:,.0f} 元，"
+                    f"高於原本基本定期定額 {basic_monthly_dca:,.0f} 元"
                 )
             else:
-                st.info("目前進度足以用原本定期定額節奏完成。")
+                year_end_text = "目前進度足以用原本定期定額節奏完成"
 
+            suggestion_points.append(
+                f"{monthly_status_text}；{year_end_text}。"
+                f"本次總建議投入 "
+                f"<span style='color:#30D158;font-weight:800;'>{total_suggestion:,.0f} 元</span>，"
+                f"以目前價格估算約可買 "
+                f"<span style='color:#30D158;font-weight:800;'>{estimated_shares:,} 股</span>。"
+            )
+
+            # 第 2 點：整合目前加碼狀態、下一個觀察點
             if triggered_rule is not None:
-                st.error(
+                dip_status_text = (
                     f"目前已觸發 {triggered_level}% 下跌加碼條件，"
-                    f"額外下跌加碼建議為 {dip_suggestion:,.0f} 元。"
+                    f"額外下跌加碼建議為 {dip_suggestion:,.0f} 元"
                 )
             else:
-                st.info("目前尚未觸發下跌加碼條件。")
+                dip_status_text = "目前尚未觸發下跌加碼條件"
 
-            st.success(
-                f"本次總建議投入：{total_suggestion:,.0f} 元，"
-                f"以目前價格估算約可買 {estimated_shares:,} 股。"
+            if next_rule is not None:
+                next_level, next_amount = next_rule
+                next_price = period_high * (1 + next_level / 100)
+
+                next_point_text = (
+                    f"下一個觀察點為 {next_level}% 跌幅，約等於價格 "
+                    f"<span style='color:#0A84FF;font-weight:800;'>{next_price:.2f} 元</span>，"
+                    f"若觸發則原定加碼 {next_amount / 10000:.1f} 萬"
+                )
+            else:
+                next_point_text = (
+                    "目前已跌破所有設定的下跌加碼條件，建議避免一次投入全部剩餘資金"
+                )
+
+            suggestion_points.append(
+                f"{dip_status_text}；{next_point_text}。"
             )
 
-        # =========================
-        # 下一步觀察點
-        # =========================
-        st.subheader("下一步觀察點")
+        suggestion_html = "".join([f"<li>{point}</li>" for point in suggestion_points])
 
-        if next_rule is not None:
-            next_level, next_amount = next_rule
-            next_price = period_high * (1 + next_level / 100)
+        st.markdown(
+            f"""
+            <div class="card">
+                <ul style="
+                    margin-top: 0;
+                    margin-bottom: 0;
+                    padding-left: 22px;
+                    line-height: 1.9;
+                    color: #F5F5F7;
+                    font-size: 1rem;
+                ">
+                    {suggestion_html}
+                </ul>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            st.write(
-                f"下一個下跌加碼觀察點：{next_level}% ，"
-                f"約等於價格 {next_price:.2f} 元。"
-            )
-
-            st.write(
-                f"如果跌到這個位置，原定下跌加碼金額為 {next_amount:,.0f} 元。"
-            )
-        else:
-            st.write("目前已經跌破所有設定的下跌加碼條件，應避免一次把剩餘資金全部打完。")
 
         # =========================
         # 加碼條件表
@@ -615,14 +1036,46 @@ for symbol, info in strategy.items():
                 status = "尚未觸發"
 
             rule_rows.append({
-                "跌幅條件": f"{level}%",
-                "觸發價格約": round(trigger_price, 2),
-                "原定加碼金額": f"{amount:,.0f} 元",
-                "目前狀態": status
+                "跌幅": f"{level}%",
+                "價格": f"{trigger_price:.2f}",
+                "金額": f"{amount / 10000:.1f} 萬",
+                "狀態": status
             })
 
         rule_df = pd.DataFrame(rule_rows)
-        st.dataframe(rule_df, width="stretch")
+
+        styled_rule_df = rule_df.style.set_properties(
+            **{
+                "text-align": "center"
+            }
+        ).set_table_styles(
+            [
+                 {
+                    "selector": "th",
+                    "props": [
+                    ("text-align", "center")
+                    ]
+                },
+                {
+                    "selector": "td",
+                    "props": [
+                        ("text-align", "center")
+                    ]       
+                }
+            ]
+        )
+
+        st.dataframe(
+            styled_rule_df,
+            width="stretch",
+            hide_index=True,
+            column_config={
+                "跌幅": st.column_config.TextColumn("跌幅", width="small"),
+                "價格": st.column_config.TextColumn("價格", width="small"),
+                "金額": st.column_config.TextColumn("金額", width="small"),
+                "狀態": st.column_config.TextColumn("狀態", width="small"),
+            }
+        )
 
         # =========================
         # 股價圖表
@@ -694,13 +1147,68 @@ log_df = load_investment_log()
 if log_df.empty:
     st.info("目前還沒有任何輸入紀錄。")
 else:
-    # 讓最新紀錄顯示在最上面
     display_log_df = log_df.copy()
-    display_log_df.insert(0, "紀錄編號", display_log_df.index)
+
+    # 加入紀錄編號，方便刪除
+    display_log_df.insert(0, "編號", display_log_df.index)
+
+    # 時間縮短
+    if "時間" in display_log_df.columns:
+        display_log_df["時間"] = pd.to_datetime(
+            display_log_df["時間"],
+            errors="coerce"
+        ).dt.strftime("%m/%d %H:%M")
+
+    # 金額欄位改成「萬」
+    money_cols = [
+        "0050已購入總金額",
+        "00662已購入總金額",
+        "0050本月已投入金額",
+        "00662本月已投入金額"
+    ]
+
+    for col in money_cols:
+        if col in display_log_df.columns:
+            display_log_df[col] = pd.to_numeric(
+                display_log_df[col],
+                errors="coerce"
+            ).fillna(0)
+            display_log_df[col] = display_log_df[col].apply(
+                lambda x: f"{x / 10000:.1f}萬"
+            )
+
+    # 欄位名稱縮短
+    display_log_df = display_log_df.rename(
+        columns={
+            "0050已購入總金額": "0050總",
+            "00662已購入總金額": "00662總",
+            "0050本月已投入金額": "0050月",
+            "00662本月已投入金額": "00662月"
+        }
+    )
+
+    # 最新紀錄放最上面
+    display_log_df = display_log_df.sort_values("時間", ascending=False)
+
+    styled_log_df = display_log_df.style.set_properties(
+        **{
+            "text-align": "center"
+        }
+    ).set_table_styles(
+        [
+            {
+                "selector": "th",
+                "props": [
+                    ("text-align", "center")
+                ]
+            }
+        ]
+    )
 
     st.dataframe(
-        display_log_df.sort_values("時間", ascending=False),
-        width="stretch"
+        styled_log_df,
+        width="stretch",
+        hide_index=True
     )
 
     st.subheader("取消 / 刪除錯誤紀錄")

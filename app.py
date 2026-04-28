@@ -128,21 +128,44 @@ def delete_investment_record(index_to_delete):
 # =========================
 # 股票資料下載
 # =========================
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=300)
 def load_stock_data(symbol, start, end):
     """
     下載股票資料。
-    加上資料清理，避免 yfinance 回傳 NaN 導致畫面顯示 nan。
+    使用 yfinance 抓近一年資料。
+    如果第一次抓不到，會改用 Ticker.history() 再試一次。
+    ttl=300 代表快取 5 分鐘，避免錯誤資料被記太久。
     """
 
-    data = yf.download(
-        symbol,
-        period="1y",
-        progress=False,
-        auto_adjust=False
-    )
+    data = pd.DataFrame()
 
-    # 如果抓不到資料，直接回傳空資料表
+    # 方法一：使用 yf.download()
+    try:
+        data = yf.download(
+            symbol,
+            period="1y",
+            interval="1d",
+            progress=False,
+            auto_adjust=False,
+            repair=True,
+            threads=False
+        )
+    except Exception:
+        data = pd.DataFrame()
+
+    # 方法二：如果方法一失敗，改用 yf.Ticker().history()
+    if data.empty:
+        try:
+            ticker = yf.Ticker(symbol)
+            data = ticker.history(
+                period="1y",
+                interval="1d",
+                auto_adjust=False
+            )
+        except Exception:
+            data = pd.DataFrame()
+
+    # 如果還是沒有資料，直接回傳空表
     if data.empty:
         return pd.DataFrame()
 
@@ -150,17 +173,27 @@ def load_stock_data(symbol, start, end):
     if isinstance(data.columns, pd.MultiIndex):
         data.columns = data.columns.get_level_values(0)
 
+    # 把日期索引變成 Date 欄位
     data = data.reset_index()
 
-    # 把重要欄位轉成數字
+    # 有些情況欄位叫 Datetime，統一改成 Date
+    if "Datetime" in data.columns and "Date" not in data.columns:
+        data = data.rename(columns={"Datetime": "Date"})
+
+    # 確認必要欄位存在
+    required_cols = ["Date", "Open", "High", "Low", "Close"]
+    for col in required_cols:
+        if col not in data.columns:
+            return pd.DataFrame()
+
+    # 數字欄位轉型
     for col in ["Open", "High", "Low", "Close", "Volume"]:
         if col in data.columns:
             data[col] = pd.to_numeric(data[col], errors="coerce")
 
-    # 刪除 Close 是空值的資料
+    # 刪掉 Close 是空值的資料
     data = data.dropna(subset=["Close"])
 
-    # 再次確認資料是否為空
     if data.empty:
         return pd.DataFrame()
 

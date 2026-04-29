@@ -1,3 +1,15 @@
+# =========================
+# 🚀 How to Run (本機執行方式)
+# =========================
+# cd Desktop\stock_app
+# streamlit run app.py
+#
+# 💡 開發小提醒：
+# - 修改程式後按 Ctrl + S 會自動刷新
+# - 若沒有刷新，按 R 或重新整理頁面
+# - 若出錯，Ctrl + C 停止後重新執行
+# =========================
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -317,7 +329,10 @@ header {visibility: hidden;}
         font-size: 1.35rem;
     }
 
-    .mini-grid,
+    .mini-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .two-col,
     .hero-grid {
         grid-template-columns: 1fr;
@@ -339,6 +354,59 @@ header {visibility: hidden;}
         font-size: 1.3rem;
     }
 }
+/* =========================
+   表格黑色風格
+========================= */
+
+/* st.dataframe 外框 */
+[data-testid="stDataFrame"] {
+    background-color: #111111 !important;
+    border-radius: 18px !important;
+    overflow: hidden !important;
+}
+
+/* 表格內部 */
+[data-testid="stDataFrame"] div {
+    color: #f5f5f7 !important;
+}
+
+/* 表頭 */
+[data-testid="stDataFrame"] th {
+    background-color: #1c1c1e !important;
+    color: #f5f5f7 !important;
+}
+
+/* 儲存格 */
+[data-testid="stDataFrame"] td {
+    background-color: #111111 !important;
+    color: #f5f5f7 !important;
+}
+
+/* st.table 用 */
+[data-testid="stTable"] {
+    background-color: #111111 !important;
+    color: #f5f5f7 !important;
+}
+
+[data-testid="stTable"] table {
+    background-color: #111111 !important;
+    color: #f5f5f7 !important;
+}
+
+[data-testid="stTable"] th,
+[data-testid="stTable"] td {
+    background-color: #111111 !important;
+    color: #f5f5f7 !important;
+    border-color: #2c2c2e !important;
+}
+.input-card {
+    background: linear-gradient(180deg, #1C1C1E 0%, #111113 100%);
+    border-radius: 22px;
+    padding: 18px;
+    margin-bottom: 18px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
 </style>
 """,
     unsafe_allow_html=True
@@ -585,41 +653,59 @@ def round_up_to_thousand(amount):
 # =========================
 # 主畫面輸入區
 # =========================
-with st.expander("輸入 / 更新投入金額", expanded=True):
+
+# 初始化 session_state
+if "purchased_0050" not in st.session_state:
+    st.session_state.purchased_0050 = 0
+
+if "purchased_00662" not in st.session_state:
+    st.session_state.purchased_00662 = 0
+
+if "monthly_0050" not in st.session_state:
+    st.session_state.monthly_0050 = 0
+
+if "monthly_00662" not in st.session_state:
+    st.session_state.monthly_00662 = 0
+
+
+show_input = st.toggle("＋ 更新投入金額", value=False)
+
+if show_input:
+    st.markdown('<div class="input-card">', unsafe_allow_html=True)
 
     st.markdown("### 資金設定")
 
-    purchased_0050 = st.number_input(
+    st.session_state.purchased_0050 = st.number_input(
         "0050 已購入總金額",
         min_value=0,
         max_value=400000,
-        value=0,
+        value=st.session_state.purchased_0050,
         step=10000
     )
 
-    purchased_00662 = st.number_input(
+    st.session_state.purchased_00662 = st.number_input(
         "00662 已購入總金額",
         min_value=0,
         max_value=650000,
-        value=0,
+        value=st.session_state.purchased_00662,
         step=10000
     )
 
     st.markdown("### 本月投入狀態")
 
-    monthly_0050 = st.number_input(
+    st.session_state.monthly_0050 = st.number_input(
         "0050 本月已投入金額",
         min_value=0,
         max_value=400000,
-        value=0,
+        value=st.session_state.monthly_0050,
         step=10000
     )
 
-    monthly_00662 = st.number_input(
+    st.session_state.monthly_00662 = st.number_input(
         "00662 本月已投入金額",
         min_value=0,
         max_value=650000,
-        value=0,
+        value=st.session_state.monthly_00662,
         step=10000
     )
 
@@ -633,14 +719,16 @@ with st.expander("輸入 / 更新投入金額", expanded=True):
 
     if st.button("儲存本次輸入紀錄"):
         add_investment_record(
-            purchased_0050,
-            purchased_00662,
-            monthly_0050,
-            monthly_00662,
+            st.session_state.purchased_0050,
+            st.session_state.purchased_00662,
+            st.session_state.monthly_0050,
+            st.session_state.monthly_00662,
             record_note
         )
 
         st.success("已儲存本次輸入紀錄")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================
@@ -656,7 +744,10 @@ months_left = get_months_left_in_year()
 # 整體總覽
 # =========================
 total_budget = 1050000
-total_purchased = purchased_0050 + purchased_00662
+total_purchased = (
+    st.session_state.purchased_0050 +
+    st.session_state.purchased_00662
+)
 total_remaining = total_budget - total_purchased
 
 st.markdown('<div class="section-title">資金總覽</div>', unsafe_allow_html=True)
@@ -697,11 +788,11 @@ st.write("---")
 for symbol, info in strategy.items():
 
     if symbol == "0050.TW":
-        purchased_amount = purchased_0050
-        monthly_invested = monthly_0050
+        purchased_amount = st.session_state.purchased_0050
+        monthly_invested = st.session_state.monthly_0050
     else:
-        purchased_amount = purchased_00662
-        monthly_invested = monthly_00662
+        purchased_amount = st.session_state.purchased_00662
+        monthly_invested = st.session_state.monthly_00662
 
     remaining_budget = info["total_budget"] - purchased_amount
 
@@ -785,448 +876,451 @@ for symbol, info in strategy.items():
 # =========================
 for symbol, info in strategy.items():
 
-    st.header(f"{symbol}｜{info['name']}")
+    with st.expander(f"{symbol}｜{info['name']}", expanded=False):
 
-    if symbol == "0050.TW":
-        purchased_amount = purchased_0050
-        monthly_invested = monthly_0050
-    else:
-        purchased_amount = purchased_00662
-        monthly_invested = monthly_00662
-
-    remaining_budget = info["total_budget"] - purchased_amount
-
-    try:
-        data = load_stock_data(symbol, start_date, end_date)
-
-        if data.empty:
-            st.error(f"{symbol} 查無資料")
-            continue
-
-        data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
-        data["Open"] = pd.to_numeric(data["Open"], errors="coerce")
-        data["High"] = pd.to_numeric(data["High"], errors="coerce")
-        data["Low"] = pd.to_numeric(data["Low"], errors="coerce")
-
-        data["MA5"] = data["Close"].rolling(window=5).mean()
-        data["MA20"] = data["Close"].rolling(window=20).mean()
-
-        latest_close = float(data["Close"].dropna().iloc[-1])
-        period_high = float(data["High"].dropna().max())
-        drawdown_pct = (latest_close - period_high) / period_high * 100
-
-        triggered_rule = get_triggered_rule(drawdown_pct, info["dip_rules"])
-        next_rule = get_next_rule(drawdown_pct, info["dip_rules"])
-
-        if remaining_budget > 0:
-            required_monthly_by_year_end = round_up_to_thousand(remaining_budget / months_left)
+        if symbol == "0050.TW":
+            purchased_amount = st.session_state.purchased_0050
+            monthly_invested = st.session_state.monthly_0050
         else:
-            required_monthly_by_year_end = 0
+            purchased_amount = st.session_state.purchased_00662
+            monthly_invested = st.session_state.monthly_00662
 
-        basic_monthly_dca = info["basic_monthly_dca"]
+        remaining_budget = info["total_budget"] - purchased_amount
 
-        basic_remaining_this_month = max(basic_monthly_dca - monthly_invested, 0)
-        year_end_remaining_this_month = max(required_monthly_by_year_end - monthly_invested, 0)
+        try:
+            data = load_stock_data(symbol, start_date, end_date)
 
-        progress_suggestion = max(
-            basic_remaining_this_month,
-            year_end_remaining_this_month
-        )
+            if data.empty:
+                st.error(f"{symbol} 查無資料")
+                continue
 
-        progress_suggestion = min(progress_suggestion, remaining_budget)
+            data["Close"] = pd.to_numeric(data["Close"], errors="coerce")
+            data["Open"] = pd.to_numeric(data["Open"], errors="coerce")
+            data["High"] = pd.to_numeric(data["High"], errors="coerce")
+            data["Low"] = pd.to_numeric(data["Low"], errors="coerce")
 
-        if triggered_rule is not None and remaining_budget > 0:
-            triggered_level, triggered_amount = triggered_rule
-            dip_suggestion = min(triggered_amount, max(remaining_budget - progress_suggestion, 0))
-        else:
-            triggered_level = None
-            dip_suggestion = 0
+            data["MA5"] = data["Close"].rolling(window=5).mean()
+            data["MA20"] = data["Close"].rolling(window=20).mean()
 
-        total_suggestion = min(progress_suggestion + dip_suggestion, remaining_budget)
-        estimated_shares = int(total_suggestion // latest_close) if latest_close > 0 else 0
+            latest_close = float(data["Close"].dropna().iloc[-1])
+            period_high = float(data["High"].dropna().max())
+            drawdown_pct = (latest_close - period_high) / period_high * 100
 
-        # =========================
-        # 股票主卡片
-        # =========================
+            triggered_rule = get_triggered_rule(drawdown_pct, info["dip_rules"])
+            next_rule = get_next_rule(drawdown_pct, info["dip_rules"])
 
-        # 計算今日漲跌幅
-        if len(data) >= 2:
-            previous_close = float(data["Close"].dropna().iloc[-2])
-            daily_change_pct = (latest_close - previous_close) / previous_close * 100
-        else:
-            daily_change_pct = 0
-
-        # 加碼狀態標籤
-        if triggered_rule is not None:
-            pill_text = "已觸發加碼"
-            pill_class = "pill-danger"
-        elif drawdown_pct <= -3:
-            pill_text = "接近觀察區"
-            pill_class = "pill-warn"
-        else:
-            pill_text = "尚未觸發加碼"
-            pill_class = "pill-good"
-
-        # 台股習慣：紅色代表漲，綠色代表跌
-        if daily_change_pct > 0:
-            change_class = "price-up"
-            change_text = f"今日上漲 +{daily_change_pct:.2f}%"
-        elif daily_change_pct < 0:
-            change_class = "price-down"
-            change_text = f"今日下跌 {daily_change_pct:.2f}%"
-        else:
-            change_class = "price-flat"
-            change_text = "今日持平 0.00%"
-
-        st.markdown(
-            f"""
-        <div class="stock-hero-card">
-        <div class="stock-header-row">
-        <div class="stock-name">{symbol}｜{info["name"]}</div>
-        <div class="status-pill {pill_class}">{pill_text}</div>
-        </div>
-
-        <div class="hero-grid">
-        <div class="hero-main">
-        <div class="hero-label">目前價格</div>
-        <div class="hero-price">{latest_close:.2f}</div>
-        <div class="hero-change {change_class}">{change_text}</div>
-        </div>
-
-        <div class="hero-suggestion">
-        <div class="hero-label">本月建議投入</div>
-        <div class="suggestion-value">{total_suggestion / 10000:.1f} 萬</div>
-        <div class="subtext">約可買 {estimated_shares:,} 股</div>
-        </div>
-        </div>
-
-        <div class="info-grid">
-        <div class="info-tile">
-        <div class="info-label">近一年高點</div>
-        <div class="info-value">{period_high:.2f}</div>
-        </div>
-
-        <div class="info-tile">
-        <div class="info-label">剩餘可投入</div>
-        <div class="info-value">{remaining_budget / 10000:.1f} 萬</div>
-        </div>
-
-        <div class="info-tile">
-        <div class="info-label">距高點跌幅</div>
-        <div class="info-value">{drawdown_pct:.2f}%</div>
-        </div>
-
-        <div class="info-tile">
-        <div class="info-label">基本月投入</div>
-        <div class="info-value">{basic_monthly_dca / 10000:.1f} 萬</div>
-        </div>
-
-        <div class="info-tile">
-        <div class="info-label">年度所需月投入</div>
-        <div class="info-value">{required_monthly_by_year_end / 10000:.1f} 萬</div>
-        </div>
-
-        <div class="info-tile">
-        <div class="info-label">本月已投入</div>
-        <div class="info-value">{monthly_invested / 10000:.1f} 萬</div>
-        </div>
-        </div>
-        </div>
-        """,
-            unsafe_allow_html=True
-        )
-
-        # =========================
-        # 今日建議
-        # =========================
-        st.subheader("今日建議操作")
-
-        suggestion_points = []
-
-        if remaining_budget <= 0:
-            suggestion_points.append("這檔股票已完成今年預計投入金額。")
-
-        else:
-            # 第 1 點：整合本月進度、年底完成需求、本次建議投入
-            if monthly_invested < basic_monthly_dca:
-                monthly_status_text = (
-                    f"本月尚未完成基本定期定額，還差 {basic_remaining_this_month:,.0f} 元"
-                )
+            if remaining_budget > 0:
+                required_monthly_by_year_end = round_up_to_thousand(remaining_budget / months_left)
             else:
-                monthly_status_text = "本月基本定期定額已完成"
+                required_monthly_by_year_end = 0
 
-            if required_monthly_by_year_end > basic_monthly_dca:
-                year_end_text = (
-                    f"為了年底前完成投入，目前每月平均需要投入約 "
-                    f"{required_monthly_by_year_end:,.0f} 元，"
-                    f"高於原本基本定期定額 {basic_monthly_dca:,.0f} 元"
-                )
-            else:
-                year_end_text = "目前進度足以用原本定期定額節奏完成"
+            basic_monthly_dca = info["basic_monthly_dca"]
 
-            suggestion_points.append(
-                f"{monthly_status_text}；{year_end_text}。"
-                f"本次總建議投入 "
-                f"<span style='color:#30D158;font-weight:800;'>{total_suggestion:,.0f} 元</span>，"
-                f"以目前價格估算約可買 "
-                f"<span style='color:#30D158;font-weight:800;'>{estimated_shares:,} 股</span>。"
+            basic_remaining_this_month = max(basic_monthly_dca - monthly_invested, 0)
+            year_end_remaining_this_month = max(required_monthly_by_year_end - monthly_invested, 0)
+
+            progress_suggestion = max(
+                basic_remaining_this_month,
+                year_end_remaining_this_month
             )
 
-            # 第 2 點：整合目前加碼狀態、下一個觀察點
+            progress_suggestion = min(progress_suggestion, remaining_budget)
+
+            if triggered_rule is not None and remaining_budget > 0:
+                triggered_level, triggered_amount = triggered_rule
+                dip_suggestion = min(triggered_amount, max(remaining_budget - progress_suggestion, 0))
+            else:
+                triggered_level = None
+                dip_suggestion = 0
+
+            total_suggestion = min(progress_suggestion + dip_suggestion, remaining_budget)
+            estimated_shares = int(total_suggestion // latest_close) if latest_close > 0 else 0
+
+            # =========================
+            # 股票主卡片
+            # =========================
+
+            # 計算今日漲跌幅
+            if len(data) >= 2:
+                previous_close = float(data["Close"].dropna().iloc[-2])
+                daily_change_pct = (latest_close - previous_close) / previous_close * 100
+            else:
+                daily_change_pct = 0
+
+            # 加碼狀態標籤
             if triggered_rule is not None:
-                dip_status_text = (
-                    f"目前已觸發 {triggered_level}% 下跌加碼條件，"
-                    f"額外下跌加碼建議為 {dip_suggestion:,.0f} 元"
-                )
+                pill_text = "已觸發加碼"
+                pill_class = "pill-danger"
+            elif drawdown_pct <= -3:
+                pill_text = "接近觀察區"
+                pill_class = "pill-warn"
             else:
-                dip_status_text = "目前尚未觸發下跌加碼條件"
+                pill_text = "尚未觸發加碼"
+                pill_class = "pill-good"
 
-            if next_rule is not None:
-                next_level, next_amount = next_rule
-                next_price = period_high * (1 + next_level / 100)
-
-                next_point_text = (
-                    f"下一個觀察點為 {next_level}% 跌幅，約等於價格 "
-                    f"<span style='color:#0A84FF;font-weight:800;'>{next_price:.2f} 元</span>，"
-                    f"若觸發則原定加碼 {next_amount / 10000:.1f} 萬"
-                )
+            # 台股習慣：紅色代表漲，綠色代表跌
+            if daily_change_pct > 0:
+                change_class = "price-up"
+                change_text = f"今日上漲 +{daily_change_pct:.2f}%"
+            elif daily_change_pct < 0:
+                change_class = "price-down"
+                change_text = f"今日下跌 {daily_change_pct:.2f}%"
             else:
-                next_point_text = (
-                    "目前已跌破所有設定的下跌加碼條件，建議避免一次投入全部剩餘資金"
-                )
+                change_class = "price-flat"
+                change_text = "今日持平 0.00%"
 
-            suggestion_points.append(
-                f"{dip_status_text}；{next_point_text}。"
-            )
+            st.markdown(
+                f"""
+            <div class="stock-hero-card">
+            <div class="stock-header-row">
+            <div class="stock-name">{symbol}｜{info["name"]}</div>
+            <div class="status-pill {pill_class}">{pill_text}</div>
+            </div>
 
-        suggestion_html = "".join([f"<li>{point}</li>" for point in suggestion_points])
+            <div class="hero-grid">
+            <div class="hero-main">
+            <div class="hero-label">目前價格</div>
+            <div class="hero-price">{latest_close:.2f}</div>
+            <div class="hero-change {change_class}">{change_text}</div>
+            </div>
 
-        st.markdown(
-            f"""
-            <div class="card">
-                <ul style="
-                    margin-top: 0;
-                    margin-bottom: 0;
-                    padding-left: 22px;
-                    line-height: 1.9;
-                    color: #F5F5F7;
-                    font-size: 1rem;
-                ">
-                    {suggestion_html}
-                </ul>
+            <div class="hero-suggestion">
+            <div class="hero-label">本月建議投入</div>
+            <div class="suggestion-value">{total_suggestion / 10000:.1f} 萬</div>
+            <div class="subtext">約可買 {estimated_shares:,} 股</div>
+            </div>
+            </div>
+
+            <div class="info-grid">
+            <div class="info-tile">
+            <div class="info-label">近一年高點</div>
+            <div class="info-value">{period_high:.2f}</div>
+            </div>
+
+            <div class="info-tile">
+            <div class="info-label">剩餘可投入</div>
+            <div class="info-value">{remaining_budget / 10000:.1f} 萬</div>
+            </div>
+
+            <div class="info-tile">
+            <div class="info-label">距高點跌幅</div>
+            <div class="info-value">{drawdown_pct:.2f}%</div>
+            </div>
+
+            <div class="info-tile">
+            <div class="info-label">基本月投入</div>
+            <div class="info-value">{basic_monthly_dca / 10000:.1f} 萬</div>
+            </div>
+
+            <div class="info-tile">
+            <div class="info-label">年度所需月投入</div>
+            <div class="info-value">{required_monthly_by_year_end / 10000:.1f} 萬</div>
+            </div>
+
+            <div class="info-tile">
+            <div class="info-label">本月已投入</div>
+            <div class="info-value">{monthly_invested / 10000:.1f} 萬</div>
+            </div>
+            </div>
             </div>
             """,
-            unsafe_allow_html=True
-        )
+                unsafe_allow_html=True
+            )
 
+            # =========================
+            # 今日建議
+            # =========================
+            st.subheader("今日建議操作")
 
-        # =========================
-        # 加碼條件表
-        # =========================
-        st.subheader("加碼條件表")
+            suggestion_points = []
 
-        rule_rows = []
+            if remaining_budget <= 0:
+                suggestion_points.append("這檔股票已完成今年預計投入金額。")
 
-        for level, amount in info["dip_rules"].items():
-            trigger_price = period_high * (1 + level / 100)
-
-            if drawdown_pct <= level:
-                status = "已觸發"
             else:
-                status = "尚未觸發"
+                # 第 1 點：整合本月進度、年底完成需求、本次建議投入
+                if monthly_invested < basic_monthly_dca:
+                    monthly_status_text = (
+                        f"本月尚未完成基本定期定額，還差 {basic_remaining_this_month:,.0f} 元"
+                    )
+                else:
+                    monthly_status_text = "本月基本定期定額已完成"
 
-            rule_rows.append({
-                "跌幅": f"{level}%",
-                "價格": f"{trigger_price:.2f}",
-                "金額": f"{amount / 10000:.1f} 萬",
-                "狀態": status
-            })
+                if required_monthly_by_year_end > basic_monthly_dca:
+                    year_end_text = (
+                        f"為了年底前完成投入，目前每月平均需要投入約 "
+                        f"{required_monthly_by_year_end:,.0f} 元，"
+                        f"高於原本基本定期定額 {basic_monthly_dca:,.0f} 元"
+                    )
+                else:
+                    year_end_text = "目前進度足以用原本定期定額節奏完成"
 
-        rule_df = pd.DataFrame(rule_rows)
+                suggestion_points.append(
+                    f"{monthly_status_text}；{year_end_text}。"
+                    f"本次總建議投入 "
+                    f"<span style='color:#30D158;font-weight:800;'>{total_suggestion:,.0f} 元</span>，"
+                    f"以目前價格估算約可買 "
+                    f"<span style='color:#30D158;font-weight:800;'>{estimated_shares:,} 股</span>。"
+                )
 
-        styled_rule_df = rule_df.style.set_properties(
-            **{
-                "text-align": "center"
-            }
-        ).set_table_styles(
-            [
-                 {
-                    "selector": "th",
-                    "props": [
-                    ("text-align", "center")
-                    ]
-                },
-                {
-                    "selector": "td",
-                    "props": [
-                        ("text-align", "center")
-                    ]       
+                # 第 2 點：整合目前加碼狀態、下一個觀察點
+                if triggered_rule is not None:
+                    dip_status_text = (
+                        f"目前已觸發 {triggered_level}% 下跌加碼條件，"
+                        f"額外下跌加碼建議為 {dip_suggestion:,.0f} 元"
+                    )
+                else:
+                    dip_status_text = "目前尚未觸發下跌加碼條件"
+
+                if next_rule is not None:
+                    next_level, next_amount = next_rule
+                    next_price = period_high * (1 + next_level / 100)
+
+                    next_point_text = (
+                        f"下一個觀察點為 {next_level}% 跌幅，約等於價格 "
+                        f"<span style='color:#0A84FF;font-weight:800;'>{next_price:.2f} 元</span>，"
+                        f"若觸發則原定加碼 {next_amount / 10000:.1f} 萬"
+                    )
+                else:
+                    next_point_text = (
+                        "目前已跌破所有設定的下跌加碼條件，建議避免一次投入全部剩餘資金"
+                    )
+
+                suggestion_points.append(
+                    f"{dip_status_text}；{next_point_text}。"
+                )
+
+            suggestion_html = "".join([f"<li>{point}</li>" for point in suggestion_points])
+
+            st.markdown(
+                f"""
+                <div class="card">
+                    <ul style="
+                        margin-top: 0;
+                        margin-bottom: 0;
+                        padding-left: 22px;
+                        line-height: 1.9;
+                        color: #F5F5F7;
+                        font-size: 1rem;
+                    ">
+                        {suggestion_html}
+                    </ul>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
+            # =========================
+            # 加碼條件表
+            # =========================
+            st.subheader("加碼條件表")
+
+            rule_rows = []
+
+            for level, amount in info["dip_rules"].items():
+                trigger_price = period_high * (1 + level / 100)
+
+                if drawdown_pct <= level:
+                    status = "已觸發"
+                else:
+                    status = "尚未觸發"
+
+                rule_rows.append({
+                    "跌幅": f"{level}%",
+                    "價格": f"{trigger_price:.2f}",
+                    "金額": f"{amount / 10000:.1f} 萬",
+                    "狀態": status
+                })
+
+            rule_df = pd.DataFrame(rule_rows)
+
+            styled_rule_df = rule_df.style.set_properties(
+                **{
+                    "text-align": "center"
                 }
-            ]
-        )
-
-        st.dataframe(
-            styled_rule_df,
-            width="stretch",
-            hide_index=True,
-            column_config={
-                "跌幅": st.column_config.TextColumn("跌幅", width="small"),
-                "價格": st.column_config.TextColumn("價格", width="small"),
-                "金額": st.column_config.TextColumn("金額", width="small"),
-                "狀態": st.column_config.TextColumn("狀態", width="small"),
-            }
-        )
-
-        # =========================
-        # 股價圖表
-        # =========================
-        st.subheader("股價走勢圖")
-
-        fig = go.Figure()
-
-        fig.add_trace(
-            go.Candlestick(
-                x=data["Date"],
-                open=data["Open"],
-                high=data["High"],
-                low=data["Low"],
-                close=data["Close"],
-                name="K 線"
+            ).set_table_styles(
+                [
+                    {
+                        "selector": "th",
+                        "props": [
+                        ("text-align", "center")
+                        ]
+                    },
+                    {
+                        "selector": "td",
+                        "props": [
+                            ("text-align", "center")
+                        ]       
+                    }
+                ]
             )
-        )
 
-        fig.add_trace(
-            go.Scatter(
-                x=data["Date"],
-                y=data["MA5"],
-                mode="lines",
-                name="MA5"
+            st.dataframe(
+                styled_rule_df,
+                width="stretch",
+                hide_index=True,
+                column_config={
+                    "跌幅": st.column_config.TextColumn("跌幅", width="small"),
+                    "價格": st.column_config.TextColumn("價格", width="small"),
+                    "金額": st.column_config.TextColumn("金額", width="small"),
+                    "狀態": st.column_config.TextColumn("狀態", width="small"),
+                }
             )
-        )
 
-        fig.add_trace(
-            go.Scatter(
-                x=data["Date"],
-                y=data["MA20"],
-                mode="lines",
-                name="MA20"
+            # =========================
+            # 股價圖表
+            # =========================
+            st.subheader("股價走勢圖")
+
+            fig = go.Figure()
+
+            fig.add_trace(
+                go.Candlestick(
+                    x=data["Date"],
+                    open=data["Open"],
+                    high=data["High"],
+                    low=data["Low"],
+                    close=data["Close"],
+                    name="K 線"
+                )
             )
-        )
 
-        fig.update_layout(
-            title=f"{symbol} 近一年 K 線圖",
-            xaxis_title="日期",
-            yaxis_title="價格",
-            height=400,
-            xaxis_rangeslider_visible=False,
-            dragmode=False
-        )
+            fig.add_trace(
+                go.Scatter(
+                    x=data["Date"],
+                    y=data["MA5"],
+                    mode="lines",
+                    name="MA5"
+                )
+            )
 
-        st.plotly_chart(
-            fig,
-            width="stretch",
-            config={
-                "displayModeBar": False,
-                "scrollZoom": False
-            }
-        )
+            fig.add_trace(
+                go.Scatter(
+                    x=data["Date"],
+                    y=data["MA20"],
+                    mode="lines",
+                    name="MA20"
+                )
+            )
 
-        st.write("---")
+            fig.update_layout(
+                title=f"{symbol} 近一年 K 線圖",
+                xaxis_title="日期",
+                yaxis_title="價格",
+                height=400,
+                xaxis_rangeslider_visible=False,
+                dragmode=False
+            )
 
-    except Exception as e:
-        st.error(f"{symbol} 發生錯誤：{e}")
+            st.plotly_chart(
+                fig,
+                width="stretch",
+                config={
+                    "displayModeBar": False,
+                    "scrollZoom": False
+                }
+            )
+
+            st.write("---")
+
+        except Exception as e:
+            st.error(f"{symbol} 發生錯誤：{e}")
 
 
 # =========================
 # 歷史輸入紀錄
 # =========================
-st.header("歷史輸入紀錄")
+with st.expander("歷史輸入紀錄", expanded=False):
 
-log_df = load_investment_log()
+    log_df = load_investment_log()
 
-if log_df.empty:
-    st.info("目前還沒有任何輸入紀錄。")
-else:
-    display_log_df = log_df.copy()
+    if log_df.empty:
+        st.info("目前還沒有任何輸入紀錄。")
+    else:
+        display_log_df = log_df.copy()
 
-    # 加入紀錄編號，方便刪除
-    display_log_df.insert(0, "編號", display_log_df.index)
+        # 加入紀錄編號，方便刪除
+        display_log_df.insert(0, "編號", display_log_df.index)
 
-    # 時間縮短
-    if "時間" in display_log_df.columns:
-        display_log_df["時間"] = pd.to_datetime(
-            display_log_df["時間"],
-            errors="coerce"
-        ).dt.strftime("%m/%d %H:%M")
-
-    # 金額欄位改成「萬」
-    money_cols = [
-        "0050已購入總金額",
-        "00662已購入總金額",
-        "0050本月已投入金額",
-        "00662本月已投入金額"
-    ]
-
-    for col in money_cols:
-        if col in display_log_df.columns:
-            display_log_df[col] = pd.to_numeric(
-                display_log_df[col],
+        # 時間縮短
+        if "時間" in display_log_df.columns:
+            display_log_df["時間"] = pd.to_datetime(
+                display_log_df["時間"],
                 errors="coerce"
-            ).fillna(0)
-            display_log_df[col] = display_log_df[col].apply(
-                lambda x: f"{x / 10000:.1f}萬"
             )
 
-    # 欄位名稱縮短
-    display_log_df = display_log_df.rename(
-        columns={
-            "0050已購入總金額": "0050總",
-            "00662已購入總金額": "00662總",
-            "0050本月已投入金額": "0050月",
-            "00662本月已投入金額": "00662月"
-        }
-    )
+        display_log_df["時間"] = display_log_df["時間"].dt.strftime("%m/%d %H:%M")
+        display_log_df["時間"] = display_log_df["時間"].fillna("時間錯誤")
 
-    # 最新紀錄放最上面
-    display_log_df = display_log_df.sort_values("時間", ascending=False)
-
-    styled_log_df = display_log_df.style.set_properties(
-        **{
-            "text-align": "center"
-        }
-    ).set_table_styles(
-        [
-            {
-                "selector": "th",
-                "props": [
-                    ("text-align", "center")
-                ]
-            }
+        # 金額欄位改成「萬」
+        money_cols = [
+            "0050已購入總金額",
+            "00662已購入總金額",
+            "0050本月已投入金額",
+            "00662本月已投入金額"
         ]
-    )
 
-    st.dataframe(
-        styled_log_df,
-        width="stretch",
-        hide_index=True
-    )
+        for col in money_cols:
+            if col in display_log_df.columns:
+                display_log_df[col] = pd.to_numeric(
+                    display_log_df[col],
+                    errors="coerce"
+                ).fillna(0)
+                display_log_df[col] = display_log_df[col].apply(
+                    lambda x: f"{x / 10000:.1f}萬"
+                )
 
-    st.subheader("取消 / 刪除錯誤紀錄")
+        # 欄位名稱縮短
+        display_log_df = display_log_df.rename(
+            columns={
+                "0050已購入總金額": "0050總",
+                "00662已購入總金額": "00662總",
+                "0050本月已投入金額": "0050月",
+                "00662本月已投入金額": "00662月"
+            }
+        )
 
-    delete_index = st.number_input(
-        "請輸入要刪除的紀錄編號",
-        min_value=0,
-        max_value=max(len(log_df) - 1, 0),
-        value=0,
-        step=1
-    )
+        # 最新紀錄放最上面
+        display_log_df = display_log_df.sort_values("時間", ascending=False)
 
-    if st.button("刪除這筆紀錄"):
-        success = delete_investment_record(delete_index)
+        styled_log_df = display_log_df.style.set_properties(
+            **{
+                "text-align": "center"
+            }
+        ).set_table_styles(
+            [
+                {
+                    "selector": "th",
+                    "props": [
+                        ("text-align", "center")
+                    ]
+                }
+            ]
+        )
 
-        if success:
-            st.success(f"已刪除紀錄編號 {delete_index}。請重新整理頁面查看結果。")
-        else:
-            st.error("刪除失敗，請確認紀錄編號是否正確。")
+        st.dataframe(
+            styled_log_df,
+            width="stretch",
+            hide_index=True
+        )
 
-    st.warning("刪除後無法復原，請確認紀錄編號再刪除。")
+        st.subheader("取消 / 刪除錯誤紀錄")
+
+        delete_index = st.number_input(
+            "請輸入要刪除的紀錄編號",
+            min_value=0,
+            max_value=max(len(log_df) - 1, 0),
+            value=0,
+            step=1
+        )
+
+        if st.button("刪除這筆紀錄"):
+            success = delete_investment_record(delete_index)
+
+            if success:
+                st.success(f"已刪除紀錄編號 {delete_index}。請重新整理頁面查看結果。")
+            else:
+                st.error("刪除失敗，請確認紀錄編號是否正確。")
+
+        st.warning("刪除後無法復原，請確認紀錄編號再刪除。")

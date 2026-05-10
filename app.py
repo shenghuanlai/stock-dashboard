@@ -14,7 +14,6 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.graph_objects as go
 from datetime import date, datetime, timedelta
 import math
 import os
@@ -29,6 +28,27 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+# =========================
+# 簡易登入驗證
+# =========================
+PASSWORD = "891220"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    password = st.text_input(
+        "請輸入網站密碼",
+        type="password"
+    )
+
+    if password == PASSWORD:
+        st.session_state.authenticated = True
+        st.rerun()
+    else:
+        st.warning("請先輸入正確密碼")
+        st.stop()
 
 # =========================
 # CSS：黑底 iOS Health 風格
@@ -873,6 +893,70 @@ for symbol, info in strategy.items():
 
 
 # =========================
+# 市場狀態判斷函式
+# =========================
+def create_temperature_gauge(value, title="市場溫度"):
+
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+
+        title={'text': title},
+
+        gauge={
+            'axis': {'range': [0, 100]},
+
+            'bar': {'color': "#00C853" if value <= 30
+                    else "#FFD600" if value <= 60
+                    else "#FF5252"},
+
+            'steps': [
+                {'range': [0, 30], 'color': "#1B5E20"},
+                {'range': [30, 60], 'color': "#F9A825"},
+                {'range': [60, 100], 'color': "#B71C1C"},
+            ],
+        }
+    ))
+
+    fig.update_layout(
+        height=220,
+        margin=dict(l=20, r=20, t=40, b=20),
+        paper_bgcolor="#111111",
+        font={'color': "white"}
+    )
+
+    return fig
+
+def get_market_temp(drawdown):
+
+    if drawdown <= -20:
+        return "🟢 恐慌區", "可考慮大額加碼", 15
+
+    elif drawdown <= -15:
+        return "🟢 偏冷區", "可分批加碼", 30
+
+    elif drawdown <= -10:
+        return "🟡 修正區", "可小額加碼", 45
+
+    elif drawdown <= -5:
+        return "🟡 正常震盪", "維持定期定額", 60
+
+    else:
+        return "🔴 偏熱區", "避免追高", 80
+
+
+
+# =========================
+# 現金管理
+# =========================
+if months_left > 0:
+    monthly_capacity = round(total_remaining / months_left)
+else:
+    monthly_capacity = 0
+
+
+
+# =========================
 # 詳細個股區塊
 # =========================
 for symbol, info in strategy.items():
@@ -1259,6 +1343,9 @@ def run_dca_backtest(symbol, start_date, end_date, monthly_amount):
 
     if data.empty:
         return None
+        # 處理 yfinance 可能回傳多層欄位的問題
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
 
     data = data[["Close"]].dropna()
     data.index = pd.to_datetime(data.index)
@@ -1289,6 +1376,7 @@ def run_dca_backtest(symbol, start_date, end_date, monthly_amount):
             "日期": date,
             "價格": price,
             "本月投入": monthly_amount,
+            "額外加碼": 0,
             "累積投入": total_invested,
             "持有股數": shares,
             "資產價值": asset_value,
@@ -1306,6 +1394,109 @@ def run_dca_backtest(symbol, start_date, end_date, monthly_amount):
 
     return result_df, summary
 
+def run_dip_buy_backtest(
+    symbol,
+    start_date,
+    end_date,
+    monthly_amount,
+    dip_threshold_1,
+    dip_amount_1,
+    dip_threshold_2,
+    dip_amount_2
+):
+
+    data = yf.download(
+        symbol,
+        start=start_date,
+        end=end_date,
+        auto_adjust=True,
+        progress=False
+    )
+
+    if data.empty:
+        return None
+
+    # 處理 yfinance 可能回傳多層欄位的問題
+    if isinstance(data.columns, pd.MultiIndex):
+        data.columns = data.columns.get_level_values(0)
+
+    data = data[["Close"]].dropna()
+    data.index = pd.to_datetime(data.index)
+
+    # 一年高點
+    data["OneYearHigh"] = data["Close"].rolling(252, min_periods=1).max()
+
+    # 距離高點跌幅
+    data["Drawdown"] = (
+        data["Close"] - data["OneYearHigh"]
+    ) / data["OneYearHigh"]
+
+    monthly_data = data.resample("MS").first().dropna()
+
+    shares = 0
+    total_invested = 0
+
+    records = []
+
+    for date, row in monthly_data.iterrows():
+
+        price = row["Close"]
+
+        if hasattr(price, "iloc"):
+            price = price.iloc[0]
+
+        price = float(price)
+
+        drawdown = float(row["Drawdown"])
+
+        # 基本定期定額
+        invest_amount = monthly_amount
+        extra_invest = 0
+
+        # 下跌加碼規則
+        if drawdown <= dip_threshold_2 / 100:
+
+            invest_amount += dip_amount_2
+            extra_invest = dip_amount_2
+
+        elif drawdown <= dip_threshold_1 / 100:
+
+            invest_amount += dip_amount_1
+            extra_invest = dip_amount_1
+
+        buy_shares = invest_amount / price
+
+        shares += buy_shares
+        total_invested += invest_amount
+
+        asset_value = shares * price
+
+        total_return = (
+            asset_value - total_invested
+        ) / total_invested
+
+        records.append({
+            "日期": date,
+            "價格": price,
+            "跌幅": drawdown,
+            "本月投入": invest_amount,
+            "額外加碼": extra_invest,
+            "累積投入": total_invested,
+            "持有股數": shares,
+            "資產價值": asset_value,
+            "累積報酬率": total_return
+        })
+
+    result_df = pd.DataFrame(records)
+
+    summary = {
+        "期末資產": result_df["資產價值"].iloc[-1],
+        "累積投入": result_df["累積投入"].iloc[-1],
+        "累積報酬率": result_df["累積報酬率"].iloc[-1],
+        "最大回撤": calculate_max_drawdown(result_df["資產價值"])
+    }
+
+    return result_df, summary
 
 def plot_equity_curve(result_df):
     """
@@ -1332,6 +1523,77 @@ def plot_equity_curve(result_df):
 
     fig.update_layout(
         height=360,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+        margin=dict(l=20, r=20, t=30, b=20),
+        legend=dict(
+            orientation="h",
+            y=1.08,
+            x=0
+        ),
+        xaxis=dict(
+            showgrid=False,
+            color="white"
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(255,255,255,0.12)",
+            color="white"
+        )
+    )
+
+    return fig
+
+# =========================
+# 雙策略比較圖
+# =========================
+def plot_compare_equity_curve(
+    dca_df,
+    dip_df
+):
+
+    fig = go.Figure()
+
+    # 定期定額
+    fig.add_trace(go.Scatter(
+        x=dca_df["日期"],
+        y=dca_df["資產價值"],
+        mode="lines",
+        name="定期定額",
+        line=dict(width=3)
+    ))
+
+    # 下跌加碼
+    fig.add_trace(go.Scatter(
+        x=dip_df["日期"],
+        y=dip_df["資產價值"],
+        mode="lines",
+        name="下跌加碼",
+        line=dict(width=3)
+    ))
+
+    # =========================
+    # 下跌加碼點標記
+    # =========================
+
+    dip_buy_points = dip_df[
+        dip_df["額外加碼"] > 0
+    ]
+
+    fig.add_trace(go.Scatter(
+        x=dip_buy_points["日期"],
+        y=dip_buy_points["資產價值"],
+        mode="markers",
+        name="加碼點",
+        marker=dict(
+            size=10,
+            symbol="circle"
+        )
+    ))
+
+    fig.update_layout(
+        height=380,
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color="white"),
@@ -1404,6 +1666,8 @@ with st.expander("策略回測績效", expanded=False):
             key="backtest_end_month"
         )
 
+
+
     monthly_amount = st.number_input(
         "每月投入金額",
         min_value=1000,
@@ -1412,6 +1676,48 @@ with st.expander("策略回測績效", expanded=False):
         step=1000,
         key="backtest_monthly_amount"
     )
+
+    st.markdown("### 下跌加碼設定")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        dip_threshold_1 = st.number_input(
+            "跌幅門檻 1 (%)",
+            min_value=-50,
+            max_value=0,
+            value=-10,
+            step=1
+        )
+
+    with col2:
+        dip_amount_1 = st.number_input(
+            "加碼金額 1",
+            min_value=0,
+            max_value=1000000,
+            value=10000,
+            step=1000
+        )
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        dip_threshold_2 = st.number_input(
+            "跌幅門檻 2 (%)",
+            min_value=-80,
+            max_value=0,
+            value=-20,
+            step=1
+        )
+
+    with col4:
+        dip_amount_2 = st.number_input(
+            "加碼金額 2",
+            min_value=0,
+            max_value=1000000,
+            value=30000,
+            step=1000
+        )
 
     run_backtest = st.button(
         "開始回測",
@@ -1427,71 +1733,86 @@ with st.expander("策略回測績效", expanded=False):
         if backtest_end_date <= backtest_start_date:
             st.warning("結束年月必須晚於開始年月。")
 
+
         else:
-            backtest_result = run_dca_backtest(
+
+            # =========================
+            # 定期定額
+            # =========================
+
+            dca_df, dca_summary = run_dca_backtest(
                 symbol="0050.TW",
                 start_date=backtest_start_date,
                 end_date=backtest_end_date,
                 monthly_amount=monthly_amount
             )
 
-            if backtest_result is None:
-                st.warning("抓不到回測資料，請確認日期區間。")
+            # =========================
+            # 下跌加碼
+            # =========================
 
-            else:
-                result_df, summary = backtest_result
+            dip_df, dip_summary = run_dip_buy_backtest(
+                symbol="0050.TW",
+                start_date=backtest_start_date,
+                end_date=backtest_end_date,
+                monthly_amount=monthly_amount,
+                dip_threshold_1=dip_threshold_1,
+                dip_amount_1=dip_amount_1,
+                dip_threshold_2=dip_threshold_2,
+                dip_amount_2=dip_amount_2
+            )
 
-                final_asset = summary["期末資產"]
-                total_invested = summary["累積投入"]
-                total_return = summary["累積報酬率"]
-                max_drawdown = summary["最大回撤"]
+            # =========================
+            # 比較卡片
+            # =========================
 
+            col1, col2 = st.columns(2)
+
+            with col1:
                 st.markdown(
                     f"""
                     <div class="summary-card">
-                        <div class="mini-grid">
-                            <div class="mini-item">
-                                <div class="mini-label label-blue">期末資產</div>
-                                <div class="mini-value">{final_asset:,.0f} 元</div>
-                            </div>
-                            <div class="mini-item">
-                                <div class="mini-label label-green">累積投入</div>
-                                <div class="mini-value">{total_invested:,.0f} 元</div>
-                            </div>
-                            <div class="mini-item">
-                                <div class="mini-label label-red">累積報酬率</div>
-                                <div class="mini-value">{total_return:.2%}</div>
-                            </div>
-                            <div class="mini-item">
-                                <div class="mini-label label-orange">最大回撤</div>
-                                <div class="mini-value">{max_drawdown:.2%}</div>
-                            </div>
-                        </div>
+                        <div class="mini-label" style="color:#7dd3fc;">定期定額</div>
+                        <br>
+                        <div class="mini-label">報酬率</div>
+                        <div class="mini-value">{dca_summary["累積報酬率"]:.2%}</div>
+                        <br>
+                        <div class="mini-label">最大回撤</div>
+                        <div class="mini-value">{dca_summary["最大回撤"]:.2%}</div>
                     </div>
                     """,
                     unsafe_allow_html=True
                 )
 
-                st.markdown("#### 資產曲線")
-                fig = plot_equity_curve(result_df)
-                st.plotly_chart(fig, width="stretch")
+            with col2:
+                st.markdown(
+                    f"""
+                    <div class="summary-card">
+                        <div class="mini-label" style="color:#0ea5e9;">下跌加碼</div>
+                        <br>
+                        <div class="mini-label">報酬率</div>
+                        <div class="mini-value">{dip_summary["累積報酬率"]:.2%}</div>
+                        <br>
+                        <div class="mini-label">最大回撤</div>
+                        <div class="mini-value">{dip_summary["最大回撤"]:.2%}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-                with st.expander("查看回測明細", expanded=False):
-                    display_df = result_df.copy()
+            # =========================
+            # 雙策略資產曲線
+            # =========================
 
-                    display_df["日期"] = display_df["日期"].dt.strftime("%Y-%m")
-                    display_df["價格"] = display_df["價格"].map(lambda x: f"{x:,.2f}")
-                    display_df["本月投入"] = display_df["本月投入"].map(lambda x: f"{x:,.0f}")
-                    display_df["累積投入"] = display_df["累積投入"].map(lambda x: f"{x:,.0f}")
-                    display_df["持有股數"] = display_df["持有股數"].map(lambda x: f"{x:,.4f}")
-                    display_df["資產價值"] = display_df["資產價值"].map(lambda x: f"{x:,.0f}")
-                    display_df["累積報酬率"] = display_df["累積報酬率"].map(lambda x: f"{x:.2%}")
+            fig = plot_compare_equity_curve(
+                dca_df,
+                dip_df
+            )
 
-                    st.dataframe(
-                        display_df,
-                        width="stretch",
-                        hide_index=True
-                    )
+            st.plotly_chart(
+                fig,
+                width="stretch"
+            )
 
 
 # =========================

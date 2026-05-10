@@ -364,15 +364,34 @@ header {visibility: hidden;}
     }
 
     .mini-value {
-        font-size: 1.55rem;
+        font-size: 1.35rem !important;
+        line-height: 1.25 !important;
+        white-space: nowrap !important;
     }
 
     .hero-price {
         font-size: 2.4rem;
     }
 
+    .stock-header {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 12px !important;
+    }
+
     .stock-name {
-        font-size: 1.3rem;
+        font-size: 1.35rem !important;
+        line-height: 1.25 !important;
+        white-space: normal !important;
+        word-break: keep-all !important;
+    }
+
+    .status-pill {
+        font-size: 1rem !important;
+        padding: 8px 14px !important;
+        align-self: flex-start !important;
+        white-space: normal !important;
     }
 }
 /* =========================

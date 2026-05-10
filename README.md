@@ -9,7 +9,7 @@
 ## Demo
 
 🔗 Streamlit Cloud：  
-[ https://stock-dashboard-mtauvajr4qlbuycblph4rx.streamlit.app/ ]
+( https://stock-dashboard-mtauvajr4qlbuycblph4rx.streamlit.app/ )
 
 ---
 

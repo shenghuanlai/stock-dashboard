@@ -9,7 +9,7 @@
 ## Demo
 
 🔗 Streamlit Cloud：  
-https://your-demo-link.streamlit.app/
+[https://your-demo-link.streamlit.app/](https://stock-dashboard-mtauvajr4qlbuycblph4rx.streamlit.app/)
 
 ---
 
@@ -322,7 +322,7 @@ Google Sheets API
 最大回撤 =
 (歷史最高資產 - 當前資產) / 歷史最高資產
 ```
-
+</details>
 
 ---
 
@@ -358,5 +358,25 @@ Google Sheets API
 
 等更接近實際產品的功能。
 
+
+</details>
+
+---
+
+<details>
+<summary><b>未來規劃</b></summary>
+   
+<br>
+
+## 擴充功能
+
+- 更多 ETF / 股票支援
+- 多策略回測系統
+- 使用者登入功能
+- 多頁式架構
+- 自動通知系統
+- 投資紀錄統計分析
+- 資料庫整合
+- 雲端部署優化
 
 </details>

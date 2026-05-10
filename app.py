@@ -1271,7 +1271,12 @@ def run_dca_backtest(symbol, start_date, end_date, monthly_amount):
     records = []
 
     for date, row in monthly_data.iterrows():
-        price = float(row["Close"])
+        price = row["Close"]
+
+        if hasattr(price, "iloc"):
+            price = price.iloc[0]
+
+        price = float(price)
 
         buy_shares = monthly_amount / price
         shares += buy_shares

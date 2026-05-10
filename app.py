@@ -388,11 +388,9 @@ header {visibility: hidden;}
     }
 
     .status-pill {
-        font-size: 0.85rem !important;
-        padding: 7px 12px !important;
-        border-radius: 999px !important;
-        align-self: flex-start !important;
-        hite-space: nowrap !important;
+        font-size: 0.8rem !important;
+        padding: 6px 10px !important;
+        white-space: nowrap !important;
     }
 }
 /* =========================

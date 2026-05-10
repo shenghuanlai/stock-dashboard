@@ -14,6 +14,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.graph_objects as go
 from datetime import date, datetime, timedelta
 import math
 import os
@@ -1226,6 +1227,266 @@ for symbol, info in strategy.items():
 
         except Exception as e:
             st.error(f"{symbol} 發生錯誤：{e}")
+
+
+# =========================
+# 策略回測績效模組
+# 放在 00662 區塊下方、歷史輸入紀錄上方
+# =========================
+
+def calculate_max_drawdown(equity_series):
+    """
+    計算最大回撤
+    """
+    rolling_max = equity_series.cummax()
+    drawdown = (equity_series - rolling_max) / rolling_max
+    return drawdown.min()
+
+
+def run_dca_backtest(symbol, start_date, end_date, monthly_amount):
+    """
+    定期定額回測
+    每月第一個交易日投入固定金額
+    """
+
+    data = yf.download(
+        symbol,
+        start=start_date,
+        end=end_date,
+        auto_adjust=True,
+        progress=False
+    )
+
+    if data.empty:
+        return None
+
+    data = data[["Close"]].dropna()
+    data.index = pd.to_datetime(data.index)
+
+    # 取每個月第一個交易日價格
+    monthly_data = data.resample("MS").first().dropna()
+
+    shares = 0
+    total_invested = 0
+    records = []
+
+    for date, row in monthly_data.iterrows():
+        price = float(row["Close"])
+
+        buy_shares = monthly_amount / price
+        shares += buy_shares
+        total_invested += monthly_amount
+
+        asset_value = shares * price
+        total_return = (asset_value - total_invested) / total_invested
+
+        records.append({
+            "日期": date,
+            "價格": price,
+            "本月投入": monthly_amount,
+            "累積投入": total_invested,
+            "持有股數": shares,
+            "資產價值": asset_value,
+            "累積報酬率": total_return
+        })
+
+    result_df = pd.DataFrame(records)
+
+    summary = {
+        "期末資產": result_df["資產價值"].iloc[-1],
+        "累積投入": result_df["累積投入"].iloc[-1],
+        "累積報酬率": result_df["累積報酬率"].iloc[-1],
+        "最大回撤": calculate_max_drawdown(result_df["資產價值"])
+    }
+
+    return result_df, summary
+
+
+def plot_equity_curve(result_df):
+    """
+    畫資產曲線
+    """
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=result_df["日期"],
+        y=result_df["資產價值"],
+        mode="lines",
+        name="資產價值",
+        line=dict(width=3)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=result_df["日期"],
+        y=result_df["累積投入"],
+        mode="lines",
+        name="累積投入",
+        line=dict(width=2, dash="dash")
+    ))
+
+    fig.update_layout(
+        height=360,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"),
+        margin=dict(l=20, r=20, t=30, b=20),
+        legend=dict(
+            orientation="h",
+            y=1.08,
+            x=0
+        ),
+        xaxis=dict(
+            showgrid=False,
+            color="white"
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="rgba(255,255,255,0.12)",
+            color="white"
+        )
+    )
+
+    return fig
+
+
+# =========================
+# 策略回測績效 UI
+# =========================
+
+with st.expander("策略回測績效", expanded=False):
+
+    st.markdown("回測標的：0050.TW｜定期定額策略")
+
+    current_year = pd.Timestamp.today().year
+    current_month = pd.Timestamp.today().month
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        start_year = st.selectbox(
+            "開始年份",
+            list(range(2015, current_year + 1)),
+            index=5,
+            key="backtest_start_year"
+        )
+
+    with col2:
+        start_month = st.selectbox(
+            "開始月份",
+            list(range(1, 13)),
+            index=0,
+            format_func=lambda x: f"{x:02d} 月",
+            key="backtest_start_month"
+        )
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        end_year = st.selectbox(
+            "結束年份",
+            list(range(2015, current_year + 1)),
+            index=len(list(range(2015, current_year + 1))) - 1,
+            key="backtest_end_year"
+        )
+
+    with col4:
+        end_month = st.selectbox(
+            "結束月份",
+            list(range(1, 13)),
+            index=current_month - 1,
+            format_func=lambda x: f"{x:02d} 月",
+            key="backtest_end_month"
+        )
+
+    monthly_amount = st.number_input(
+        "每月投入金額",
+        min_value=1000,
+        max_value=500000,
+        value=10000,
+        step=1000,
+        key="backtest_monthly_amount"
+    )
+
+    run_backtest = st.button(
+        "開始回測",
+        key="run_backtest_button",
+        use_container_width=True
+    )
+
+    if run_backtest:
+
+        backtest_start_date = pd.Timestamp(start_year, start_month, 1)
+        backtest_end_date = pd.Timestamp(end_year, end_month, 1) + pd.offsets.MonthEnd(1)
+
+        if backtest_end_date <= backtest_start_date:
+            st.warning("結束年月必須晚於開始年月。")
+
+        else:
+            backtest_result = run_dca_backtest(
+                symbol="0050.TW",
+                start_date=backtest_start_date,
+                end_date=backtest_end_date,
+                monthly_amount=monthly_amount
+            )
+
+            if backtest_result is None:
+                st.warning("抓不到回測資料，請確認日期區間。")
+
+            else:
+                result_df, summary = backtest_result
+
+                final_asset = summary["期末資產"]
+                total_invested = summary["累積投入"]
+                total_return = summary["累積報酬率"]
+                max_drawdown = summary["最大回撤"]
+
+                st.markdown(
+                    f"""
+                    <div class="summary-card">
+                        <div class="mini-grid">
+                            <div class="mini-item">
+                                <div class="mini-label label-blue">期末資產</div>
+                                <div class="mini-value">{final_asset:,.0f} 元</div>
+                            </div>
+                            <div class="mini-item">
+                                <div class="mini-label label-green">累積投入</div>
+                                <div class="mini-value">{total_invested:,.0f} 元</div>
+                            </div>
+                            <div class="mini-item">
+                                <div class="mini-label label-red">累積報酬率</div>
+                                <div class="mini-value">{total_return:.2%}</div>
+                            </div>
+                            <div class="mini-item">
+                                <div class="mini-label label-orange">最大回撤</div>
+                                <div class="mini-value">{max_drawdown:.2%}</div>
+                            </div>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                st.markdown("#### 資產曲線")
+                fig = plot_equity_curve(result_df)
+                st.plotly_chart(fig, width="stretch")
+
+                with st.expander("查看回測明細", expanded=False):
+                    display_df = result_df.copy()
+
+                    display_df["日期"] = display_df["日期"].dt.strftime("%Y-%m")
+                    display_df["價格"] = display_df["價格"].map(lambda x: f"{x:,.2f}")
+                    display_df["本月投入"] = display_df["本月投入"].map(lambda x: f"{x:,.0f}")
+                    display_df["累積投入"] = display_df["累積投入"].map(lambda x: f"{x:,.0f}")
+                    display_df["持有股數"] = display_df["持有股數"].map(lambda x: f"{x:,.4f}")
+                    display_df["資產價值"] = display_df["資產價值"].map(lambda x: f"{x:,.0f}")
+                    display_df["累積報酬率"] = display_df["累積報酬率"].map(lambda x: f"{x:.2%}")
+
+                    st.dataframe(
+                        display_df,
+                        width="stretch",
+                        hide_index=True
+                    )
 
 
 # =========================
